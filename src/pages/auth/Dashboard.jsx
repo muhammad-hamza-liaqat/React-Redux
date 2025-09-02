@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
     ChartBarIcon,
     BellIcon,
@@ -9,14 +10,79 @@ import {
     ChartPieIcon,
     Cog6ToothIcon
 } from '@heroicons/react/24/outline';
+import { logout } from '../../redux/slices/authSlice';
 
 export function Dashboard() {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const [activeTab, setActiveTab] = useState('overview');
+    const [profileLoading, setProfileLoading] = useState(true);
+
+    // Get auth state from Redux with default values
+    const { user = null, isLoggedIn = false } = useSelector((state) => state.auth) || {};
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!isLoggedIn) {
+            navigate('/');
+        }
+    }, [isLoggedIn, navigate]);
+
+    // Handle profile loading state
+    useEffect(() => {
+        if (user && Object.keys(user).length > 0) {
+            // Profile data has been loaded
+            setProfileLoading(false);
+        }
+    }, [user]);
 
     const handleLogout = () => {
-        navigate('/login');
+        dispatch(logout());
+        navigate('/');
     };
+
+    // Get user name from user object or use default
+    const userName = user?.name || user?.full_name || user?.username || 'User';
+    const userInitials = userName.split(' ').map(name => name[0]).join('').toUpperCase().slice(0, 2);
+
+    // Show loading state while profile is being fetched
+    if (profileLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="mb-4">
+                        <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                            <ChartBarIcon className="w-8 h-8 text-white" />
+                        </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Dashboard...</h2>
+                    <p className="text-gray-500 mb-6">Please wait while we load your profile information</p>
+                    <div className="flex justify-center">
+                        <svg
+                            className="animate-spin h-8 w-8 text-blue-600"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                            ></circle>
+                            <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const stats = [
         { name: 'Total Users', value: '12,847', change: '+12%', changeType: 'positive', icon: '👥' },
@@ -59,9 +125,9 @@ export function Dashboard() {
 
                             <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                                    MH
+                                    {userInitials}
                                 </div>
-                                <span className="text-sm font-medium text-gray-700">Muhammad Hamza</span>
+                                <span className="text-sm font-medium text-gray-700">{userName}</span>
                             </div>
 
                             <button
@@ -78,7 +144,7 @@ export function Dashboard() {
 
             <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, Hamza! 👋</h2>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {userName.split(' ')[0]}! 👋</h2>
                     <p className="text-gray-600">Here's what's happening with your projects today.</p>
                 </div>
 

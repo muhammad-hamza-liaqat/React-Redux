@@ -3,11 +3,9 @@ import { useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
-import { loginUser, logoutUser, setNewSetup } from "../redux";
-import { getAccessToken, setAccessToken, setRefreshToken } from "../providers";
-import { Loader } from "../components";
-import { getAccessFromRefresh, getUserData } from "../services";
-import { clearQuizData } from "../redux/slices/quizSlice";
+import { setCredentials, logout } from "../redux/slices/authSlice";
+import { getAccessToken } from "../providers";
+import { getUserData } from "../services";
 
 export function AuthProvider({ children }) {
     const dispatch = useDispatch();
@@ -17,20 +15,20 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     const handleLogoutUser = async (redirect = true) => {
-        dispatch(logoutUser());
-        dispatch(clearQuizData());
+        dispatch(logout());
 
         if (redirect) {
             navigate("/");
         }
         setLoading(false);
-        setAccessToken("");
-        setRefreshToken("");
     };
 
     // Helper function to dispatch Redux action for user info
     const setUserInfoAction = (userInfo) => {
-        dispatch(loginUser(userInfo));
+        dispatch(setCredentials({
+            token: getAccessToken(),
+            user: userInfo
+        }));
         setLoading(false);
     };
 
@@ -48,20 +46,6 @@ export function AuthProvider({ children }) {
         }
     };
 
-    const generateAccessToken = async () => {
-        try {
-            const response = await getAccessFromRefresh();
-            setAccessToken(response?.access);
-            setRefreshToken(response?.refresh);
-            setTimeout(() => {
-                getProfileInfo();
-            }, 500);
-        } catch (error) {
-            console.log("error", error);
-            handleLogoutUser();
-        }
-    };
-
     const fetchData = () => {
         if (pathname === "/new-password" || pathname === "/reset-password") {
             handleLogoutUser(false);
@@ -69,33 +53,13 @@ export function AuthProvider({ children }) {
         }
 
         const accessToken = getAccessToken();
+        if (!accessToken) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const decodedToken = jwtDecode(accessToken);
-
-            const expiry = decodedToken.exp;
-            const expiryDate = new Date(expiry * 1000);
-            const now = new Date();
-            const oneDayFromNow = new Date(now.getTime() + 86400000);
-
-            if (expiryDate > oneDayFromNow) {
-                // Token is still valid for more than one day!
-                getProfileInfo();
-            } else {
-                // Token has expired.
-                generateAccessToken();
-            }
-        } catch (error) {
-            console.error("Error decoding token:", error);
-            handleLogoutUser();
-        }
-    };
-
-    const handleNewSetup = () => {
-        const params = new URLSearchParams(location.search);
-        const token = params.get("token");
-
-        try {
-            const decodedToken = jwtDecode(token);
 
             const expiry = decodedToken.exp;
             const expiryDate = new Date(expiry * 1000);
@@ -103,10 +67,9 @@ export function AuthProvider({ children }) {
 
             if (expiryDate > now) {
                 // Token is still valid
-                setLoading(false);
-                dispatch(setNewSetup(decodedToken));
+                getProfileInfo();
             } else {
-                // Token has expired.
+                // Token has expired
                 handleLogoutUser();
             }
         } catch (error) {
@@ -116,12 +79,8 @@ export function AuthProvider({ children }) {
     };
 
     useEffect(() => {
-        if (location.pathname.includes("organization-information")) {
-            handleNewSetup();
-        } else {
-            fetchData();
-        }
+        fetchData();
     }, []);
 
-    return <React.Fragment>{loading ? <Loader /> : children}</React.Fragment>;
+    return <React.Fragment>{loading ? <div>Loading...</div> : children}</React.Fragment>;
 }
