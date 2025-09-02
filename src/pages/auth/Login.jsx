@@ -1,36 +1,95 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import {
     LockClosedIcon,
     EnvelopeIcon,
 } from '@heroicons/react/24/outline';
+import { loginUser, clearError } from '../../redux/slices/authSlice';
 
 export function Login() {
     const [formData, setFormData] = useState({ email: '', password: '' });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [profileLoading, setProfileLoading] = useState(false);
     const navigate = useNavigate();
+    const dispatch = useDispatch();
+
+    const { loading = false, error = null, isLoggedIn = false } = useSelector((state) => state.auth) || {};
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            setProfileLoading(true);
+            setTimeout(() => {
+                setProfileLoading(false);
+                navigate('/dashboard');
+            }, 2000);
+        }
+    }, [isLoggedIn, navigate]);
+
+    useEffect(() => {
+        return () => {
+            dispatch(clearError());
+        };
+    }, [dispatch]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
+
+        if (error) {
+            dispatch(clearError());
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-        setError('');
 
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        if (!formData.email || !formData.password) {
+            return;
+        }
 
-            navigate('/dashboard');
-        } catch (err) {
-            setError(err.message || 'Login failed. Please try again.');
-        } finally {
-            setLoading(false);
+        const result = await dispatch(loginUser(formData));
+
+        if (loginUser.fulfilled.match(result)) {
         }
     };
+
+    if (profileLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+                <div className="max-w-md w-full text-center">
+                    <div className="mb-4">
+                        <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
+                            <LockClosedIcon className="w-8 h-8 text-white" />
+                        </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Profile...</h2>
+                    <p className="text-gray-500 mb-6">Please wait while we fetch your profile information</p>
+                    <div className="flex justify-center">
+                        <svg
+                            className="animate-spin h-8 w-8 text-blue-600"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                            ></circle>
+                            <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -146,7 +205,11 @@ export function Login() {
                         </div>
                     </form>
 
-                    {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                    {error && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <p className="text-red-600 text-sm">{error}</p>
+                        </div>
+                    )}
 
                     <div className="mt-6">
                         <div className="relative">
